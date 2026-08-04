@@ -1,7 +1,7 @@
 # Real, live-generated output — not a hand-crafted fixture
 
 `Button.tsx` and `Button.stories.tsx` here came from an actual Anthropic API
-call (`node tools/generate_component.js`, run against `button-danger.json`),
+call (`node tools/generate_component.ts`, run against `button-danger.json`),
 not written by hand like everything else in `generated/`.
 
 **Result: gate and critic both correctly failed it.** The model referenced

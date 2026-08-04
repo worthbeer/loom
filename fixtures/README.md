@@ -12,7 +12,7 @@ retrieval tool and the gate are tested against.
   (the node-ID suffix disambiguates properties across nested component
   sets), each value `{ type: "VARIANT", value: "Danger" }`. Authored values
   are capitalized, the way a designer types them into a variant dropdown —
-  `tools/read_figma_node.js`'s `extractVariant()` is where these get
+  `tools/read_figma_node.ts`'s `extractVariant()` is where these get
   lowercased into the enum values everything downstream expects.
 - `styles.fill` / `styles.stroke` — a style-ID reference (e.g.
   `"S:button-red-600,0"`), only present when the fill/stroke is bound to a

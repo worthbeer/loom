@@ -1,16 +1,16 @@
 // Unit coverage for the retrieval-layer tools and the critic's mechanical
-// checks — the pieces the gate.test.js CLI sweep doesn't exercise directly.
+// checks — the pieces the gate.test.ts CLI sweep doesn't exercise directly.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { read_tokens } = require('../tools/read_tokens');
-const { read_figma_node } = require('../tools/read_figma_node');
-const { read_component_patterns } = require('../tools/read_component_patterns');
-const { routeFramework } = require('../tools/route_framework');
-const { critique } = require('../tools/critic');
-const { run_retrieval_loop } = require('../tools/run_retrieval_loop');
+const { read_tokens } = require('../tools/read_tokens.ts');
+const { read_figma_node } = require('../tools/read_figma_node.ts');
+const { read_component_patterns } = require('../tools/read_component_patterns.ts');
+const { routeFramework } = require('../tools/route_framework.ts');
+const { critique } = require('../tools/critic.ts');
+const { run_retrieval_loop } = require('../tools/run_retrieval_loop.ts');
 
 test('read_tokens: valid ref resolves', () => {
   assert.deepEqual(read_tokens('color/red/600'), { value: '#C0392B', found: true });
@@ -44,8 +44,8 @@ test('read_component_patterns: never mixes frameworks for the same component', (
   const angular = read_component_patterns('Button', 'angular');
   assert.ok(react.length > 0);
   assert.ok(angular.length > 0);
-  assert.ok(react.every((p) => p.filename.endsWith('.tsx')));
-  assert.ok(angular.every((p) => p.filename.endsWith('.ts')));
+  assert.ok(react.every((p: { filename: string }) => p.filename.endsWith('.tsx')));
+  assert.ok(angular.every((p: { filename: string }) => p.filename.endsWith('.ts')));
 });
 
 test('read_component_patterns: missing combo returns [], not a throw', () => {
@@ -86,7 +86,7 @@ test('critic: drifted fixture is caught, naming the specific token that should h
   const source = fs.readFileSync(path.join(__dirname, '..', 'generated', 'Button.drifted.tsx'), 'utf8');
   const result = critique(source, { resolvedTokens });
   assert.equal(result.passed, false);
-  assert.ok(result.violations.some((v) => v.detail.includes('color/red/600')));
+  assert.ok(result.violations.some((v: { detail: string }) => v.detail.includes('color/red/600')));
 });
 
 test('run_retrieval_loop: restate_intent stays stubbed (null) unless live is explicitly requested', async () => {

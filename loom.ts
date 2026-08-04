@@ -10,31 +10,38 @@
 //     calls, zero cost — what the regression suite and demo chain have
 //     always run against, unchanged.
 //   - `--live` (requires ANTHROPIC_API_KEY): restate_intent and generation
-//     both make real Anthropic API calls (tools/restate_intent.js,
-//     tools/generate_component.js). Opt-in per invocation, not keyed off
+//     both make real Anthropic API calls (tools/restate_intent.ts,
+//     tools/generate_component.ts). Opt-in per invocation, not keyed off
 //     the env var's mere presence, so having a key exported in your shell
 //     doesn't silently make every routine run cost money.
 
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
+import type { GateResult, CriticResult, ResolvedTokens } from './tools/types.ts';
 
-const { routeFramework } = require('./tools/route_framework');
-const { run_retrieval_loop } = require('./tools/run_retrieval_loop');
-const { generateComponent } = require('./tools/generate_component');
-const { critique } = require('./tools/critic');
-const { runGate } = require('./tools/gate');
-const { open_pr, openPullRequest, postComment, buildCommentBody, getToken } = require('./tools/open_pr');
+const fs: typeof import('fs') = require('fs');
+const path: typeof import('path') = require('path');
+const readline: typeof import('readline') = require('readline');
+
+const { routeFramework } = require('./tools/route_framework.ts');
+const { run_retrieval_loop } = require('./tools/run_retrieval_loop.ts');
+const { generateComponent } = require('./tools/generate_component.ts');
+const { critique } = require('./tools/critic.ts');
+const { runGate } = require('./tools/gate.ts');
+const { open_pr, openPullRequest, postComment, buildCommentBody, getToken } = require('./tools/open_pr.ts');
+
+interface GenerationMapping {
+  componentFile: string;
+  storiesFile?: string;
+}
 
 // Pre-built, gate/critic-*tested* generated outputs, keyed by fixture then
 // framework — the default (non-`--live`) generation path, so the free
 // regression suite/demo chain keeps running on zero-cost, already-verified
 // fixtures rather than a live model call every time. `--live` bypasses this
-// table entirely in favor of tools/generate_component.js. storiesFile is
+// table entirely in favor of tools/generate_component.ts. storiesFile is
 // optional: not every mapped fixture needs one, particularly a
 // deliberately-broken one that's never actually meant to reach open_pr
 // (see 'badge-broken' below).
-const GENERATION_MAP = {
+const GENERATION_MAP: Record<string, Record<string, GenerationMapping>> = {
   'button-danger': {
     react: {
       componentFile: 'generated/Button.clean.tsx',
@@ -53,12 +60,20 @@ const GENERATION_MAP = {
   },
 };
 
+interface FrameworkTarget {
+  owner: string;
+  repo: string;
+  baseBranch: string;
+  componentPath: (type: string) => string;
+  storiesPath: (type: string) => string;
+}
+
 // Per-framework landing target. Each real app owns its own repo, base
 // branch, and file-naming convention — Angular's is lowercase kebab-case
 // (button.component.ts), React's is PascalCase (Button.tsx) — a real
 // decision framework routing has to make (ADR 0009), not paper over with
 // one shared naming scheme.
-const FRAMEWORK_TARGETS = {
+const FRAMEWORK_TARGETS: Record<string, FrameworkTarget> = {
   react: {
     owner: 'worthbeer',
     repo: 'ai-builder-styles',
@@ -75,18 +90,35 @@ const FRAMEWORK_TARGETS = {
   },
 };
 
-function defaultLog(line) {
+function defaultLog(line: string): void {
   console.log(`> ${line}`);
 }
 
-function promptFramework() {
+function promptFramework(): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve) => {
-    rl.question('Framework ambiguous — which one? (react/angular): ', (answer) => {
+    rl.question('Framework ambiguous — which one? (react/angular): ', (answer: string) => {
       rl.close();
       resolve(answer.trim().toLowerCase());
     });
   });
+}
+
+interface GenerateArgs {
+  component: string;
+  variant: string;
+  framework?: string;
+  live?: boolean;
+  onTrace?: (line: string) => void;
+  resolveAmbiguity?: (() => Promise<string>) | null;
+}
+
+interface GenerateResult {
+  gateResult: GateResult;
+  criticResult: CriticResult;
+  prUrl: string | null;
+  componentType: string;
+  variant: Record<string, string>;
 }
 
 // onTrace/resolveAmbiguity are injectable so the exact same pipeline has
@@ -95,11 +127,11 @@ function promptFramework() {
 // Storybook panel) streams the same lines as SSE events and, since SSE is
 // one-directional, can't prompt mid-stream — it ends the stream on
 // ambiguity instead, surfacing the question rather than guessing.
-async function generate({ component, variant, framework: explicitFramework, live = false, onTrace = defaultLog, resolveAmbiguity = null }) {
+async function generate({ component, variant, framework: explicitFramework, live = false, onTrace = defaultLog, resolveAmbiguity = null }: GenerateArgs): Promise<GenerateResult> {
   const fixtureKey = `${component}-${variant}`;
   const fixturePath = path.join(__dirname, 'fixtures', `${fixtureKey}.json`);
   if (!fs.existsSync(fixturePath)) {
-    const available = fs.readdirSync(path.join(__dirname, 'fixtures')).filter((f) => f.endsWith('.json'));
+    const available = fs.readdirSync(path.join(__dirname, 'fixtures')).filter((f: string) => f.endsWith('.json'));
     throw new Error(`No fixture found for "${fixtureKey}". Available: ${available.join(', ')}`);
   }
   const payload = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
@@ -123,26 +155,26 @@ async function generate({ component, variant, framework: explicitFramework, live
   // Retrieval loop — real, deterministic, no model call. Restatement makes
   // a real Anthropic call when `live`, stub otherwise.
   const { intent, resolvedTokens, patterns, restatedIntent } = await run_retrieval_loop(payload, routing.framework, { live });
-  const tokenSummary = Object.entries(resolvedTokens)
+  const tokenSummary = Object.entries(resolvedTokens as ResolvedTokens)
     .map(([ref, r]) => (r.found ? `${ref} → ${r.value}` : `${ref} → NOT FOUND`))
     .join(', ');
   onTrace(`Reading tokens... ${tokenSummary}`);
-  onTrace(`Reading existing patterns... found ${patterns.length ? patterns.map((p) => p.filename).join(', ') : '(none)'}`);
-  onTrace(`Restating intent... ${restatedIntent === null ? '(stubbed — see tools/restate_intent.js)' : JSON.stringify(restatedIntent)}`);
-  if (restatedIntent?.needsClarification) {
+  onTrace(`Reading existing patterns... found ${patterns.length ? patterns.map((p: { filename: string }) => p.filename).join(', ') : '(none)'}`);
+  onTrace(`Restating intent... ${restatedIntent === null ? '(stubbed — see tools/restate_intent.ts)' : JSON.stringify(restatedIntent)}`);
+  if (restatedIntent && 'needsClarification' in restatedIntent && restatedIntent.needsClarification) {
     throw new Error(`restate_intent asked for clarification instead of guessing: ${restatedIntent.question}`);
   }
 
-  // Generation. `--live` calls the real model (tools/generate_component.js);
+  // Generation. `--live` calls the real model (tools/generate_component.ts);
   // default path reads a pre-built, already gate/critic-tested fixture from
   // GENERATION_MAP.
-  let componentSource;
-  let storiesSource;
+  let componentSource: string;
+  let storiesSource: string | null;
   if (live) {
     if (!patterns[0]) {
       throw new Error(`Generating component... no pattern file found for "${intent.component}"/"${routing.framework}" to show the model the naming convention.`);
     }
-    onTrace('Generating component... (live Anthropic call, see tools/generate_component.js)');
+    onTrace('Generating component... (live Anthropic call, see tools/generate_component.ts)');
     const { componentFile, storiesFile } = await generateComponent({ restatedIntent, pattern: patterns[0] });
     componentSource = componentFile.content;
     storiesSource = storiesFile ? storiesFile.content : null;
@@ -168,13 +200,13 @@ async function generate({ component, variant, framework: explicitFramework, live
 
   // Critic — real, independent re-derivation from resolvedTokens, never
   // from restatedIntent (ADR 0011).
-  const criticResult = critique(componentSource, { resolvedTokens });
+  const criticResult: CriticResult = critique(componentSource, { resolvedTokens });
   onTrace(`Running critic... ${criticResult.passed ? '✅ passed' : '❌ failed'}, ${criticResult.violations.length} violations`);
 
   // Gate — real, deterministic, the actual pass/fail authority.
   const tokensJson = JSON.parse(fs.readFileSync(path.join(__dirname, 'tokens.json'), 'utf8'));
   const componentType = intent.component;
-  const gateResult = runGate(componentSource, tokensJson, componentType);
+  const gateResult: GateResult = runGate(componentSource, tokensJson, componentType);
   onTrace(`Running gate... ${gateResult.passed ? '✅ passed' : '❌ failed'}, ${gateResult.violations.length} violations`);
   if (!gateResult.passed) {
     onTrace('Gate failed — stopping here. Generated code is still available locally; no PR will be opened.');
@@ -224,18 +256,18 @@ async function generate({ component, variant, framework: explicitFramework, live
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (args[0] !== 'generate') {
-    console.error('Usage: node loom.js generate <component> --variant=<x> [--framework=<react|angular>] [--live]');
+    console.error('Usage: node loom.ts generate <component> --variant=<x> [--framework=<react|angular>] [--live]');
     process.exit(2);
   }
   const component = args[1];
-  const flags = {};
+  const flags: Record<string, string> = {};
   const live = args.includes('--live');
   for (const arg of args.slice(2)) {
     const match = arg.match(/^--([\w-]+)=(.*)$/);
     if (match) flags[match[1]] = match[2];
   }
   if (!component || !flags.variant) {
-    console.error('Usage: node loom.js generate <component> --variant=<x> [--framework=<react|angular>] [--live]');
+    console.error('Usage: node loom.ts generate <component> --variant=<x> [--framework=<react|angular>] [--live]');
     process.exit(2);
   }
   if (live && !process.env.ANTHROPIC_API_KEY) {

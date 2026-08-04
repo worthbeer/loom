@@ -2,9 +2,9 @@
 
 Originally hand-traced with no live API call, to keep the focus on the
 checkpoint's *shape and failure modes* rather than API mechanics before
-`tools/restate_intent.js` was wired for real. This trace was written to be
+`tools/restate_intent.ts` was wired for real. This trace was written to be
 the copy-pasteable starting point for that prompt, and is what the real
-implementation is based on (see `tools/restate_intent.js`).
+implementation is based on (see `tools/restate_intent.ts`).
 
 ---
 
@@ -15,7 +15,7 @@ It is: a small, cheap, non-creative paraphrase of `intent` + `resolvedTokens`
 already established — proving the facts were read correctly before
 generation spends any effort on them.
 
-It is not: a new source of ground truth. `tools/critic.js` never receives
+It is not: a new source of ground truth. `tools/critic.ts` never receives
 this output (see its header comment) — re-deriving from the *original*
 `resolvedTokens` is what actually prevents a drifted restatement from being
 "confirmed" against itself. See ADR 0011.
@@ -100,13 +100,13 @@ reading of retrieved facts (ADR 0011).
 
 ## Why this stays out of the critic's reach
 
-If `critic.js` ever took `restatedIntent` as ground truth instead of a fresh
+If `critic.ts` ever took `restatedIntent` as ground truth instead of a fresh
 `resolvedTokens` re-derivation, the Case 1 omission failure above would
 "pass" — the critic would compare generated output against the same vague
 restatement that already lost the information, and find no discrepancy.
 That's the self-review rationalization failure the generator/critic split
 (decision 7) exists to prevent, recreated one layer up. This is why
-`critic.js`'s `critique()` function has no `restatedIntent` parameter at
+`critic.ts`'s `critique()` function has no `restatedIntent` parameter at
 all — verified in this session by running the critic against a loop that
 now includes the (stubbed) `restate_intent` step and confirming byte-for-byte
 identical output to before the step existed.

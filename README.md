@@ -38,34 +38,37 @@ two entry points.
 
 ## Requirements
 
-- Node.js ≥ 20
+- Node.js ≥ 23.6.0 (runs the pipeline's TypeScript directly via Node's
+  native type stripping — no build step, no ts-node)
 - [`gh`](https://cli.github.com/) CLI, authenticated (`gh auth login`), for
   GitHub API access — PR creation, comments, CI status. `GITHUB_TOKEN`
   works as an alternative.
 - `ANTHROPIC_API_KEY`, only if generating with `--live` (see below).
 - No third-party runtime dependencies — the pipeline runs on Node
   built-ins, including a direct `fetch` to the Anthropic Messages API for
-  the two live-model stages, no SDK.
+  the two live-model stages, no SDK. `typescript` is a devDependency,
+  used only for `tsc --noEmit` type-checking, not for compiling anything.
 
 ## Usage
 
 ```bash
 # Validate a single component against the gate
-node validate.js path/to/Component.tsx
-node validate.js --help                   # full rule reference
+node validate.ts path/to/Component.tsx
+node validate.ts --help                   # full rule reference
 
 # Generate a component and open a draft PR
-node loom.js generate button --variant=danger --framework=react
+node loom.ts generate button --variant=danger --framework=react
 
 # Same, but with real model calls for restatement + generation
 # (requires ANTHROPIC_API_KEY)
-node loom.js generate button --variant=danger --framework=react --live
+node loom.ts generate button --variant=danger --framework=react --live
 
-# Run the test suite
+# Run the test suite / type-check
 npm test
+npm run typecheck
 
 # Start the SSE bridge server behind the Storybook panel
-node bridge-server.js
+node bridge-server.ts
 ```
 
 ## Project layout
@@ -78,7 +81,7 @@ node bridge-server.js
   routing, and GitHub/publish automation.
 - `generated/` — fixtures covering every gate rule, alias, and framework
   combination; the regression suite.
-- `registry/` — a local scratch package `tools/publish.js` publishes to.
+- `registry/` — a local scratch package `tools/publish.ts` publishes to.
 - `tests/` — the automated test suite (`node:test`).
 - `ARCHITECTURE.md`, `docs/adr/` — system design and the reasoning behind
   each architectural decision.

@@ -1,11 +1,16 @@
 name: CI
 
-# Runs this repo's own test suite (tests/) on every push/PR — the gate
-# regression sweep (all fixtures in generated/, via the real validate.js
-# CLI) plus unit coverage for the retrieval tools, critic, and framework
-# routing. Separate from the LOOM gate CI that runs in the two consumer
-# repos (ai-builder-styles, ai-builder-angular-styles) — this one verifies
-# the source of truth those repos vendor from.
+# Runs this repo's own test suite (tests/) and type-check on every push/PR
+# — the gate regression sweep (all fixtures in generated/, via the real
+# validate.ts CLI) plus unit coverage for the retrieval tools, critic, and
+# framework routing. Separate from the LOOM gate CI that runs in the two
+# consumer repos (ai-builder-styles, ai-builder-angular-styles) — this one
+# verifies the source of truth those repos vendor from.
+#
+# Node >=23.6.0 is required at runtime: the pipeline is TypeScript run
+# directly via Node's native type stripping, no build step. typescript
+# itself is only a devDependency, used here for real tsc --noEmit
+# type-checking, not for compiling anything.
 
 on:
   push:
@@ -20,6 +25,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
+
+      - run: npm install
+
+      - run: npm run typecheck
 
       - run: npm test

@@ -1,3 +1,5 @@
+import type { ResolvedTokens, CriticResult, CriticViolation } from './types.ts';
+
 // Re-parses the generated code itself — never trusts the generator's own
 // claim about what it did. Only checks the mechanical, pattern-matchable
 // half of the critic's job (see traces/generator-prompt-trace.md). The
@@ -10,15 +12,15 @@
 // the restatement as ground truth (ADR 0011) is enforced: there's no
 // parameter to misuse.
 
-function critique(source, { resolvedTokens }) {
-  const valueToRef = {};
+function critique(source: string, { resolvedTokens }: { resolvedTokens: ResolvedTokens }): CriticResult {
+  const valueToRef: Record<string, string> = {};
   for (const [ref, result] of Object.entries(resolvedTokens)) {
-    if (result.found) valueToRef[result.value] = ref;
+    if (result.found && result.value !== null) valueToRef[result.value] = ref;
   }
 
-  const violations = [];
+  const violations: CriticViolation[] = [];
   const literalPattern = /#[0-9A-Fa-f]{6}\b|\b\d+px\b/g;
-  let match;
+  let match: RegExpExecArray | null;
   while ((match = literalPattern.exec(source)) !== null) {
     const literal = match[0];
     const lineNumber = source.slice(0, match.index).split('\n').length;
@@ -43,9 +45,9 @@ module.exports = { critique };
 
 if (require.main === module) {
   (async () => {
-    const fs = require('fs');
-    const path = require('path');
-    const { run_retrieval_loop } = require('./run_retrieval_loop');
+    const fs: typeof import('fs') = require('fs');
+    const path: typeof import('path') = require('path');
+    const { run_retrieval_loop } = require('./run_retrieval_loop.ts');
 
     const buttonDanger = require('../fixtures/button-danger.json');
     const { resolvedTokens } = await run_retrieval_loop(buttonDanger, 'react');

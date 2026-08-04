@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Generates Angular's token-resolver.ts from tokens.json — the TS-side
-// equivalent of generate_tokens_css.js. Same real gap being closed here:
+// equivalent of generate_tokens_css.ts. Same real gap being closed here:
 // token-resolver.ts was hand-maintained with only the 2 entries whichever
 // component happened to need at the time, not the actual full token set —
 // meaning "corporate redefines a color" could silently fail at runtime
@@ -13,19 +13,19 @@
 // tokens.json and registry/tokens.css: it IS the source of truth's TS
 // form, not a consumer of it.
 
-const fs = require('fs');
-const path = require('path');
-const tokens = require('../tokens.json');
+const fs: typeof import('fs') = require('fs');
+const path: typeof import('path') = require('path');
+const tokens: Record<string, Record<string, string>> = require('../tokens.json');
 
-function generate() {
-  const lines = [];
+function generate(): string {
+  const lines: string[] = [];
   for (const [category, entries] of Object.entries(tokens)) {
     for (const [key, value] of Object.entries(entries)) {
       lines.push(`  '${category}/${key}': '${value}',`);
     }
   }
   return (
-    `// GENERATED from tokens.json by tools/generate_token_resolver.js — do\n` +
+    `// GENERATED from tokens.json by tools/generate_token_resolver.ts — do\n` +
     `// not hand-edit, and do not run this file through the gate (same\n` +
     `// convention as tokens.json itself). Regenerate after any tokens.json\n` +
     `// change.\n` +

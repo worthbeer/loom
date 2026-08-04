@@ -1,22 +1,27 @@
-const { read_figma_node } = require('./read_figma_node');
-const { read_tokens } = require('./read_tokens');
-const { read_component_patterns } = require('./read_component_patterns');
-const { restate_intent } = require('./restate_intent');
+import type { ResolvedTokens, RetrievalLoopResult, TraceEntry } from './types.ts';
+
+const { read_figma_node } = require('./read_figma_node.ts');
+const { read_tokens } = require('./read_tokens.ts');
+const { read_component_patterns } = require('./read_component_patterns.ts');
+const { restate_intent } = require('./restate_intent.ts');
+
+interface RunRetrievalLoopOptions {
+  live?: boolean;
+}
 
 // Deterministic, fixed-order chain — no model in the loop by default, so no
 // step cap needed (that guardrail matters once a model is choosing what to
 // call next). restate_intent is stubbed unless `live` is explicitly
-// passed — see tools/restate_intent.js for why that's opt-in rather than
-// keyed off ANTHROPIC_API_KEY's mere presence. Async
-// unconditionally (even when stubbed) so callers have one interface
-// regardless of live/stub mode.
-async function run_retrieval_loop(payload, framework, { live = false } = {}) {
-  const trace = [];
+// passed — see tools/restate_intent.ts for why that's opt-in rather than
+// keyed off ANTHROPIC_API_KEY's mere presence. Async unconditionally (even
+// when stubbed) so callers have one interface regardless of live/stub mode.
+async function run_retrieval_loop(payload: unknown, framework: string, { live = false }: RunRetrievalLoopOptions = {}): Promise<RetrievalLoopResult> {
+  const trace: TraceEntry[] = [];
 
   const intent = read_figma_node(payload);
   trace.push({ step: 'read_figma_node', input: payload, output: intent });
 
-  const resolvedTokens = {};
+  const resolvedTokens: ResolvedTokens = {};
   for (const ref of intent.tokenRefs) {
     const result = read_tokens(ref);
     resolvedTokens[ref] = result;
@@ -24,7 +29,7 @@ async function run_retrieval_loop(payload, framework, { live = false } = {}) {
   }
 
   const patterns = read_component_patterns(intent.component, framework);
-  trace.push({ step: 'read_component_patterns', input: { component: intent.component, framework }, output: patterns.map((p) => p.filename) });
+  trace.push({ step: 'read_component_patterns', input: { component: intent.component, framework }, output: patterns.map((p: { filename: string }) => p.filename) });
 
   const restatedIntent = await restate_intent({ intent, resolvedTokens, patterns, live });
   trace.push({ step: 'restate_intent', input: { intent, resolvedTokens, patterns }, output: restatedIntent });

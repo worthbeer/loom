@@ -3,10 +3,26 @@
 // Messages API is a single POST, and pulling in a full SDK for one endpoint
 // would be more surface area than this needs. Both callers gate on an
 // explicit `live` flag before ever reaching this module (see
-// tools/restate_intent.js, tools/generate_component.js) — importing this
+// tools/restate_intent.ts, tools/generate_component.ts) — importing this
 // file does not by itself cause any network call or cost.
 
-async function callAnthropic({ system, user, model, maxTokens }) {
+interface AnthropicContentBlock {
+  type: string;
+  text: string;
+}
+
+interface AnthropicMessagesResponse {
+  content: AnthropicContentBlock[];
+}
+
+interface CallAnthropicArgs {
+  system: string;
+  user: string;
+  model: string;
+  maxTokens: number;
+}
+
+async function callAnthropic({ system, user, model, maxTokens }: CallAnthropicArgs): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -35,14 +51,14 @@ async function callAnthropic({ system, user, model, maxTokens }) {
     throw new Error(`Anthropic API error ${response.status}: ${body}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as AnthropicMessagesResponse;
   return data.content.map((block) => block.text).join('');
 }
 
 // Models wrap output in ```/```json fences fairly often even when told not
 // to — a prompt instruction isn't a hard constraint the way the gate is.
 // Strip a single leading/trailing fence rather than relying on compliance.
-function stripCodeFences(text) {
+function stripCodeFences(text: string): string {
   const trimmed = text.trim();
   const match = trimmed.match(/^```[\w-]*\n([\s\S]*?)\n```$/);
   return match ? match[1] : trimmed;

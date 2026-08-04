@@ -1,3 +1,5 @@
+import type { GateViolation } from './types.ts';
+
 // Publish pipeline. The merge-time gate is a hard precondition, not a
 // formality: even though CI already runs the gate before merge, this
 // re-runs it again at the actual publish moment, deliberately redundant —
@@ -5,23 +7,35 @@
 // between what CI saw and what's actually being published. "It passed
 // earlier" is never sufficient on its own (see ADR 0010).
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const { runGate } = require('./gate');
+const fs: typeof import('fs') = require('fs');
+const path: typeof import('path') = require('path');
+const { execSync }: typeof import('child_process') = require('child_process');
+const { runGate } = require('./gate.ts');
 
 const REGISTRY_ROOT = path.join(__dirname, '..', 'registry');
 const COMPONENTS_DIR = path.join(REGISTRY_ROOT, 'components');
 const PACKAGE_JSON = path.join(REGISTRY_ROOT, 'package.json');
 
+interface FileToPublish {
+  path: string;
+  content: string;
+}
+
+interface PublishResult {
+  version: string;
+  bumpType: 'minor' | 'patch';
+  bumpReason: string;
+  publishOutput: string;
+}
+
 // files: [{ path (relative, e.g. "Button/Button.tsx"), content }]
-function publish(files) {
+function publish(files: FileToPublish[]): PublishResult {
   const tokens = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'tokens.json'), 'utf8'));
 
   // Hard precondition: gate re-runs on every file being published, not
   // just the ones that changed. A single failure blocks the whole
   // publish, atomically — nothing is written, npm is never invoked.
-  const gateFailures = [];
+  const gateFailures: { path: string; violations: GateViolation[] }[] = [];
   for (const file of files) {
     const componentType = path.basename(file.path).split('.')[0];
     const result = runGate(file.content, tokens, componentType);
@@ -48,7 +62,7 @@ function publish(files) {
   const pkg = JSON.parse(fs.readFileSync(PACKAGE_JSON, 'utf8'));
   const [major, minor, patch] = pkg.version.split('.').map(Number);
 
-  let bumpType = 'patch';
+  let bumpType: 'minor' | 'patch' = 'patch';
   let bumpReason = 'existing component file(s) republished';
   for (const file of files) {
     if (!fs.existsSync(path.join(COMPONENTS_DIR, file.path))) {
@@ -92,7 +106,7 @@ if (require.main === module) {
     console.log(`Published ${result.version} (${result.bumpType} bump — ${result.bumpReason})`);
     console.log(result.publishOutput);
   } catch (err) {
-    console.error('UNEXPECTED FAILURE:', err.message);
+    console.error('UNEXPECTED FAILURE:', (err as Error).message);
     process.exit(1);
   }
 
@@ -102,6 +116,6 @@ if (require.main === module) {
     console.error('UNEXPECTED: publish succeeded when it should have blocked');
     process.exit(1);
   } catch (err) {
-    console.log('Blocked correctly:', err.message);
+    console.log('Blocked correctly:', (err as Error).message);
   }
 }

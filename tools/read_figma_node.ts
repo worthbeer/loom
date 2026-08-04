@@ -1,10 +1,27 @@
-const tokens = require('../tokens.json');
-const figmaStyles = require('../figma-styles.json');
+import type { Intent } from './types.ts';
+
+const tokens: Record<string, Record<string, string>> = require('../tokens.json');
+const figmaStyles: Record<string, { name: string }> = require('../figma-styles.json');
+
+interface ComponentProperty {
+  type: string;
+  value: string | number | boolean;
+}
+
+interface FigmaPayload {
+  component: string;
+  componentId?: string;
+  componentProperties?: Record<string, ComponentProperty>;
+  fills?: unknown[];
+  styles?: Record<string, string>;
+  cornerRadius?: number;
+  children?: unknown;
+}
 
 // Figma's generic style types map to our token categories. Only FILL/STROKE
 // are used by current fixtures; extend this table, not the resolution
 // logic, if EFFECT/TEXT styles are ever needed.
-const STYLE_TYPE_TO_CATEGORY = { FILL: 'color', STROKE: 'color' };
+const STYLE_TYPE_TO_CATEGORY: Record<string, string> = { FILL: 'color', STROKE: 'color' };
 
 // Reverse lookup: numeric px value -> our radius token ref. This mapping
 // lives entirely on our side — Figma has no concept of a "radius style" at
@@ -12,7 +29,7 @@ const STYLE_TYPE_TO_CATEGORY = { FILL: 'color', STROKE: 'color' };
 // plain number directly on the node, not a shared/resolvable style like
 // fill or stroke). Translating that number into a design-system token is
 // our own convention to own, not something Figma resolves for us.
-function radiusRefForPx(px) {
+function radiusRefForPx(px: number | undefined): string | null {
   for (const [key, value] of Object.entries(tokens.radius)) {
     if (parseInt(value, 10) === px) return `radius/${key}`;
   }
@@ -27,17 +44,17 @@ function radiusRefForPx(px) {
 // becomes a token ref once lowercased — "Red/600" -> "color/red/600" — by
 // our own naming convention, not anything Figma enforces. An unbound
 // literal fill has no ref to resolve at all, which is the real-world
-// analog of gate.js rule 1's hardcoded-value check, one layer upstream in
+// analog of gate.ts rule 1's hardcoded-value check, one layer upstream in
 // Figma itself.
-function styleRefFor(styleType, styleId) {
+function styleRefFor(styleType: string, styleId: string): string | null {
   const category = STYLE_TYPE_TO_CATEGORY[styleType];
   const style = figmaStyles[styleId];
   if (!category || !style) return null;
   return `${category}/${style.name.toLowerCase()}`;
 }
 
-function extractTokenRefs(node) {
-  const refs = [];
+function extractTokenRefs(node: FigmaPayload): string[] {
+  const refs: string[] = [];
   for (const [styleType, styleId] of Object.entries(node.styles || {})) {
     const ref = styleRefFor(styleType.toUpperCase(), styleId);
     if (ref) refs.push(ref);
@@ -53,8 +70,8 @@ function extractTokenRefs(node) {
 // are capitalized ("Danger") the way a designer would type them into a
 // variant dropdown; downstream code expects lowercase enums, so this is
 // where that translation actually happens, not assumed away.
-function extractVariant(componentProperties) {
-  const variant = {};
+function extractVariant(componentProperties: Record<string, ComponentProperty> | undefined): Record<string, string> {
+  const variant: Record<string, string> = {};
   for (const [key, entry] of Object.entries(componentProperties || {})) {
     const propName = key.split('#')[0].toLowerCase();
     variant[propName] = String(entry.value).toLowerCase();
@@ -62,7 +79,7 @@ function extractVariant(componentProperties) {
   return variant;
 }
 
-function read_figma_node(payload) {
+function read_figma_node(payload: FigmaPayload): Intent {
   return {
     component: payload.component,
     variant: extractVariant(payload.componentProperties),

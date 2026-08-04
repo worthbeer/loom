@@ -1,6 +1,8 @@
-const tokens = require('../tokens.json');
+import type { ResolvedToken } from './types.ts';
 
-function read_tokens(ref) {
+const tokens: Record<string, Record<string, string>> = require('../tokens.json');
+
+function read_tokens(ref: string): ResolvedToken {
   const separatorIndex = ref.indexOf('/');
   if (separatorIndex === -1) return { value: null, found: false };
 
@@ -10,7 +12,7 @@ function read_tokens(ref) {
   return { value: value ?? null, found: value !== undefined };
 }
 
-function flattenValidRefs() {
+function flattenValidRefs(): string[] {
   return Object.entries(tokens).flatMap(([category, entries]) =>
     Object.keys(entries).map((key) => `${category}/${key}`)
   );

@@ -10,7 +10,7 @@ Flat args: `state`, `size`, `children`. Customization happens by enumerating
 variants (`Default`, `Danger`, `Sizes`), not by adding new props. This is the
 convention `traces/generator-prompt-trace.md` and the generated fixtures in
 `generated/` are already built against — treat `state`/`size` here as load
-bearing, not just an example. `tools/gate.js`'s `renamedPropCheck()` (rule 4)
+bearing, not just an example. `tools/gate.ts`'s `renamedPropCheck()` (rule 4)
 enforces `state` as canonical and flags `variant`/`color` as known-wrong
 aliases — proven by `generated/Button.renamed-prop.tsx` (`variant`) and
 `generated/Button.renamed-color.tsx` (`color`), both failing distinctly
@@ -26,7 +26,7 @@ stay visible here rather than get silently normalized, since the framework
 routing/prop-contract layer (ADR 0009) has to handle ambiguity in the
 pattern source itself. Whether `status` counts as "the same convention,
 differently named" or an actual violation is decided per-component in
-`tools/gate.js`'s `PROP_SCHEMA`, not by this file.
+`tools/gate.ts`'s `PROP_SCHEMA`, not by this file.
 
 `renamedPropCheck()` treats this file's own convention as canonical, not
 Button's: it requires `status` here and flags `state`/`variant` as the
@@ -41,7 +41,7 @@ component's own pattern rather than one global name.
 Agrees with Button's `state`/`size` naming (the majority convention — Alert
 is the one outlier, not the other way around) and adds a required
 `aria-label` on every variant. This is now an enforced rule, not just a
-documented convention — `tools/gate.js`'s `requiredPropsPresent()` checks it
+documented convention — `tools/gate.ts`'s `requiredPropsPresent()` checks it
 directly, proven against `generated/Chip.clean.tsx` (passes),
 `generated/Chip.missing-aria.tsx`, and `generated/Chip.optional-aria.tsx`
 (both fail, with distinct messages). Added alongside

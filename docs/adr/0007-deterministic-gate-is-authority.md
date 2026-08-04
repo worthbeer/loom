@@ -10,7 +10,7 @@ decide whether something ships — "the model says it's fine" doesn't hold
 up as an enforcement mechanism.
 
 ## Decision
-A separate, deterministic gate (AST/regex/schema checks — `tools/gate.js`)
+A separate, deterministic gate (AST/regex/schema checks — `tools/gate.ts`)
 is the actual pass/fail authority. It runs independently of any model call,
 checks the same categories of rule the critic explains (no hardcoded
 values, no invented token references, required props present, canonical

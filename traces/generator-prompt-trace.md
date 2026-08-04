@@ -4,7 +4,7 @@ Originally hand-traced with no live API call, built entirely from the
 retrieval loop's real trace output for `button-danger.json` plus
 hand-reasoning about correct vs. drifted output. Written to be
 copy-pasteable as the real prompt once generation was wired — see
-`tools/generate_component.js`, which is based on this trace.
+`tools/generate_component.ts`, which is based on this trace.
 
 The user message below sends `restatedIntent` (see
 `traces/restate-intent-trace.md`) in place of raw `intent` +

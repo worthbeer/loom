@@ -1,14 +1,14 @@
 # Hand-traced `open_pr` (button-danger.json → Button.tsx + Button.stories.tsx)
 
-Originally hand-traced with no GitHub API call made, before `tools/open_pr.js`
+Originally hand-traced with no GitHub API call made, before `tools/open_pr.ts`
 was wired for real. Endpoints, payload shapes, and response shapes below are
 the real GitHub REST/Git Data API — structurally honest, same standard
 applied to the Figma mock (ADR 0004). Written to be copy-pasteable as the
-real implementation, which `tools/open_pr.js` is based on.
+real implementation, which `tools/open_pr.ts` is based on.
 
 Represents landing `generated/Button.clean.tsx` +
-`generated/Button.clean.stories.tsx`, both gate-passed (`validate.js`,
-exit 0), critic-passed (`critic.js`, `passed: true`, zero violations).
+`generated/Button.clean.stories.tsx`, both gate-passed (`validate.ts`,
+exit 0), critic-passed (`critic.ts`, `passed: true`, zero violations).
 
 Using the Git Data API for an atomic two-file commit (see prior discussion:
 avoids a branch left in a half-generated state if a call fails mid-sequence).
@@ -116,7 +116,7 @@ POST /repos/{owner}/{repo}/issues/128/comments
 ```
 ```json
 {
-  "body": "**Loom generation summary**\n\n- Source: `button-danger.json` (Button, state=danger, size=md)\n- Tokens used: `color/red/600` → `#C0392B`, `radius/sm` → `4px`\n- Pattern matched: `patterns/react/Button.stories.tsx`\n- Critic: passed, 0 violations, matches_intent not evaluated (regex critic — semantic check would need a model call, not run this trace)\n- Gate (`validate.js`): passed, 0 violations (no-hardcoded-value, invented-reference — both clean)\n\nThis PR will not auto-merge under any condition. Gate re-runs as an actual CI check on this PR once CI is wired — this comment reflects a local run, not a CI-verified one, and that distinction should be visible in the real comment, not just known privately."
+  "body": "**Loom generation summary**\n\n- Source: `button-danger.json` (Button, state=danger, size=md)\n- Tokens used: `color/red/600` → `#C0392B`, `radius/sm` → `4px`\n- Pattern matched: `patterns/react/Button.stories.tsx`\n- Critic: passed, 0 violations, matches_intent not evaluated (regex critic — semantic check would need a model call, not run this trace)\n- Gate (`validate.ts`): passed, 0 violations (no-hardcoded-value, invented-reference — both clean)\n\nThis PR will not auto-merge under any condition. Gate re-runs as an actual CI check on this PR once CI is wired — this comment reflects a local run, not a CI-verified one, and that distinction should be visible in the real comment, not just known privately."
 }
 ```
 
@@ -128,7 +128,7 @@ The comment body is explicit that `matches_intent` wasn't actually evaluated
 — the critic never made a model call in this trace, so claiming a semantic
 check happened would be exactly the kind of undisclosed mock/real blur
 ADR 0004 rules out. Also explicit: this comment reflects a local run of
-`validate.js`, not a CI-verified run — gate-as-CI-check was, at the time
+`validate.ts`, not a CI-verified run — gate-as-CI-check was, at the time
 this trace was written, still a separate, unbuilt step. A real PR comment
 conflating "I ran this on my machine" with "CI verified this" would be a
 trust violation the exact same shape as the gate/critic distinction itself.

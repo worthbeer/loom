@@ -1,3 +1,7 @@
+import type { Intent, ResolvedTokens, CriticResult, GateResult } from './types.ts';
+
+const { execSync }: typeof import('child_process') = require('child_process');
+
 // Real GitHub Git Data API calls. Implements steps 1-6 of
 // traces/open-pr-trace.md: get base ref -> get base commit's
 // tree -> create a blob per generated file -> create a new tree -> create
@@ -7,16 +11,14 @@
 // Opening the actual PR + comment (steps 7-8) is a separate concern below,
 // not this part of the file.
 
-const { execSync } = require('child_process');
-
 const GITHUB_API = 'https://api.github.com';
 
-function getToken() {
+function getToken(): string {
   if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
   return execSync('gh auth token', { encoding: 'utf8' }).trim();
 }
 
-async function githubRequest(token, method, apiPath, body) {
+async function githubRequest<T = any>(token: string, method: string, apiPath: string, body?: unknown): Promise<T> {
   const res = await fetch(`${GITHUB_API}${apiPath}`, {
     method,
     headers: {
@@ -31,25 +33,39 @@ async function githubRequest(token, method, apiPath, body) {
   if (!res.ok) {
     throw new Error(`GitHub API ${method} ${apiPath} failed: ${res.status} ${JSON.stringify(data)}`);
   }
-  return data;
+  return data as T;
+}
+
+interface FileToLand {
+  path: string;
+  content: string;
+}
+
+interface OpenPrArgs {
+  owner: string;
+  repo: string;
+  baseBranch: string;
+  newBranch: string;
+  commitMessage: string;
+  files: FileToLand[];
 }
 
 // files: [{ path, content }] - path relative to repo root, content raw text.
-async function open_pr({ owner, repo, baseBranch, newBranch, commitMessage, files }) {
+async function open_pr({ owner, repo, baseBranch, newBranch, commitMessage, files }: OpenPrArgs) {
   const token = getToken();
 
   // 1. Get base branch's latest commit
-  const baseRef = await githubRequest(token, 'GET', `/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`);
+  const baseRef = await githubRequest<{ object: { sha: string } }>(token, 'GET', `/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`);
   const baseSha = baseRef.object.sha;
 
   // 2. Get that commit's tree SHA
-  const baseCommit = await githubRequest(token, 'GET', `/repos/${owner}/${repo}/git/commits/${baseSha}`);
+  const baseCommit = await githubRequest<{ tree: { sha: string } }>(token, 'GET', `/repos/${owner}/${repo}/git/commits/${baseSha}`);
   const baseTreeSha = baseCommit.tree.sha;
 
   // 3. Create a blob per generated file
-  const blobs = [];
+  const blobs: { path: string; sha: string }[] = [];
   for (const file of files) {
-    const blob = await githubRequest(token, 'POST', `/repos/${owner}/${repo}/git/blobs`, {
+    const blob = await githubRequest<{ sha: string }>(token, 'POST', `/repos/${owner}/${repo}/git/blobs`, {
       content: Buffer.from(file.content, 'utf8').toString('base64'),
       encoding: 'base64',
     });
@@ -57,20 +73,20 @@ async function open_pr({ owner, repo, baseBranch, newBranch, commitMessage, file
   }
 
   // 4. Create a new tree, based on the existing one, adding both files
-  const newTree = await githubRequest(token, 'POST', `/repos/${owner}/${repo}/git/trees`, {
+  const newTree = await githubRequest<{ sha: string }>(token, 'POST', `/repos/${owner}/${repo}/git/trees`, {
     base_tree: baseTreeSha,
     tree: blobs.map((b) => ({ path: b.path, mode: '100644', type: 'blob', sha: b.sha })),
   });
 
   // 5. Create the commit
-  const newCommit = await githubRequest(token, 'POST', `/repos/${owner}/${repo}/git/commits`, {
+  const newCommit = await githubRequest<{ sha: string }>(token, 'POST', `/repos/${owner}/${repo}/git/commits`, {
     message: commitMessage,
     tree: newTree.sha,
     parents: [baseSha],
   });
 
   // 6. Create the branch, pointing straight at the new commit.
-  const newRef = await githubRequest(token, 'POST', `/repos/${owner}/${repo}/git/refs`, {
+  const newRef = await githubRequest<{ ref: string }>(token, 'POST', `/repos/${owner}/${repo}/git/refs`, {
     ref: `refs/heads/${newBranch}`,
     sha: newCommit.sha,
   });
@@ -78,13 +94,21 @@ async function open_pr({ owner, repo, baseBranch, newBranch, commitMessage, file
   return { baseSha, treeSha: newTree.sha, commitSha: newCommit.sha, branch: newRef.ref };
 }
 
+interface OpenPullRequestArgs {
+  owner: string;
+  repo: string;
+  title: string;
+  head: string;
+  base: string;
+}
+
 // Steps 7-8: separate functions, since opening a PR and commenting on it
 // is independent of whether the branch/commit above was just created or
 // already existed. Never called with anything but draft: true — never
 // auto-merge (ADR 0008) is not a parameter, it's hardcoded, so nothing
 // upstream can accidentally flip it.
-async function openPullRequest(token, { owner, repo, title, head, base }) {
-  return githubRequest(token, 'POST', `/repos/${owner}/${repo}/pulls`, {
+async function openPullRequest(token: string, { owner, repo, title, head, base }: OpenPullRequestArgs) {
+  return githubRequest<{ number: number; html_url: string; draft: boolean }>(token, 'POST', `/repos/${owner}/${repo}/pulls`, {
     title,
     head,
     base,
@@ -92,15 +116,26 @@ async function openPullRequest(token, { owner, repo, title, head, base }) {
   });
 }
 
-async function postComment(token, { owner, repo, issueNumber, body }) {
-  return githubRequest(token, 'POST', `/repos/${owner}/${repo}/issues/${issueNumber}/comments`, { body });
+async function postComment(token: string, { owner, repo, issueNumber, body }: { owner: string; repo: string; issueNumber: number; body: string }) {
+  return githubRequest<{ html_url: string }>(token, 'POST', `/repos/${owner}/${repo}/issues/${issueNumber}/comments`, { body });
+}
+
+interface BuildCommentBodyArgs {
+  fixtureLabel: string;
+  intent: Intent;
+  resolvedTokens: ResolvedTokens;
+  patternFilename: string;
+  framework?: string;
+  criticResult: CriticResult;
+  gateResult: GateResult;
+  decisionsWorthKeeping: string | null;
 }
 
 // Built from real retrieval-loop/critic/gate output, never hand-wavy prose.
 // decisionsWorthKeeping is omitted entirely, not filled with a placeholder,
 // when the generation genuinely didn't surface anything non-obvious worth
 // flagging in the PR comment.
-function buildCommentBody({ fixtureLabel, intent, resolvedTokens, patternFilename, framework, criticResult, gateResult, decisionsWorthKeeping }) {
+function buildCommentBody({ fixtureLabel, intent, resolvedTokens, patternFilename, framework, criticResult, gateResult, decisionsWorthKeeping }: BuildCommentBodyArgs): string {
   const tokenLines = Object.entries(resolvedTokens)
     .map(([ref, r]) => `\`${ref}\` → \`${r.value}\``)
     .join(', ');
@@ -117,7 +152,7 @@ function buildCommentBody({ fixtureLabel, intent, resolvedTokens, patternFilenam
     `- Tokens used: ${tokenLines}\n` +
     `- Pattern matched: \`patterns/${framework || 'react'}/${patternFilename}\`\n` +
     `- Critic: ${criticLine}\n` +
-    `- Gate (\`validate.js\`): ${gateLine}\n`;
+    `- Gate (\`validate.ts\`): ${gateLine}\n`;
 
   if (decisionsWorthKeeping) {
     body += `- Decisions worth keeping: ${decisionsWorthKeeping}\n`;
@@ -141,17 +176,16 @@ module.exports = {
 
 if (require.main === module) {
   (async () => {
-    const fs = require('fs');
-    const path = require('path');
-    const { run_retrieval_loop } = require('./run_retrieval_loop');
-    const { critique } = require('./critic');
-    const { runGate } = require('./gate');
+    const fs: typeof import('fs') = require('fs');
+    const path: typeof import('path') = require('path');
+    const { run_retrieval_loop } = require('./run_retrieval_loop.ts');
+    const { critique } = require('./critic.ts');
+    const { runGate } = require('./gate.ts');
 
     const OWNER = 'worthbeer';
     const REPO = 'ai-builder-styles';
 
     const buttonTsx = fs.readFileSync(path.join(__dirname, '..', 'generated', 'Button.clean.tsx'), 'utf8');
-    const buttonStories = fs.readFileSync(path.join(__dirname, '..', 'generated', 'Button.clean.stories.tsx'), 'utf8');
     const buttonDanger = require('../fixtures/button-danger.json');
     const tokensJson = require('../tokens.json');
 
@@ -180,7 +214,7 @@ if (require.main === module) {
         });
         return postComment(token, { owner: OWNER, repo: REPO, issueNumber: pr.number, body }).then((comment) => ({ pr, comment }));
       })
-      .then(({ pr, comment }) => {
+      .then(({ comment }) => {
         console.log('Comment posted:', comment.html_url);
       })
       .catch((err) => {

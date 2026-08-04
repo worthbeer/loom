@@ -1,5 +1,7 @@
+import type { RestatedIntent, PatternFile, GeneratedFile, GenerationResult } from './types.ts';
+
 // Real generation call. Only reached when the caller explicitly opts in
-// (loom.js's `--live` CLI flag) — same discipline as tools/restate_intent.js,
+// (loom.ts's `--live` CLI flag) — same discipline as tools/restate_intent.ts,
 // and for the same reason: nothing in the existing regression suite, the
 // GENERATION_MAP fixture path, or the demo chain should start silently
 // costing money just because ANTHROPIC_API_KEY happens to be present in
@@ -29,10 +31,10 @@ Hard constraints:
 <file content>
 ===END===`;
 
-function parseFileBlocks(raw) {
-  const files = {};
+function parseFileBlocks(raw: string): Record<string, string> {
+  const files: Record<string, string> = {};
   const regex = /===FILE: (.+?)===\n([\s\S]*?)\n===END===/g;
-  let match;
+  let match: RegExpExecArray | null;
   while ((match = regex.exec(raw)) !== null) {
     files[match[1].trim()] = match[2];
   }
@@ -42,15 +44,20 @@ function parseFileBlocks(raw) {
   return files;
 }
 
-async function generateComponent({ restatedIntent, pattern }) {
-  const { callAnthropic } = require('./anthropic_client');
+interface GenerateComponentArgs {
+  restatedIntent: RestatedIntent;
+  pattern: PatternFile;
+}
+
+async function generateComponent({ restatedIntent, pattern }: GenerateComponentArgs): Promise<GenerationResult> {
+  const { callAnthropic } = require('./anthropic_client.ts');
 
   const userPayload = {
     restatedIntent,
     pattern: { filename: pattern.filename, source: pattern.source },
   };
 
-  const raw = await callAnthropic({
+  const raw: string = await callAnthropic({
     system: SYSTEM_PROMPT,
     user: `${JSON.stringify(userPayload, null, 2)}\n\nRequest: generate the component and story file for this intent.`,
     model: 'claude-sonnet-5', // the one stage where judgment belongs — not the cheap/small model used for restatement
@@ -66,10 +73,11 @@ async function generateComponent({ restatedIntent, pattern }) {
     throw new Error(`generateComponent: could not identify a component file among: ${entries.map(([f]) => f).join(', ')}`);
   }
 
-  return {
+  const result: GenerationResult = {
     componentFile: { filename: componentEntry[0], content: componentEntry[1] },
     storiesFile: storiesEntry ? { filename: storiesEntry[0], content: storiesEntry[1] } : null,
   };
+  return result;
 }
 
 module.exports = { generateComponent };
@@ -80,20 +88,21 @@ if (require.main === module) {
   // Requires ANTHROPIC_API_KEY; this file is never invoked as part of any
   // other script's default path (see the file header).
   (async () => {
-    const fs = require('fs');
-    const path = require('path');
-    const { run_retrieval_loop } = require('./run_retrieval_loop');
+    const fs: typeof import('fs') = require('fs');
+    const path: typeof import('path') = require('path');
+    const { run_retrieval_loop } = require('./run_retrieval_loop.ts');
 
     const buttonDanger = require('../fixtures/button-danger.json');
     const { resolvedTokens, patterns, restatedIntent } = await run_retrieval_loop(buttonDanger, 'react', { live: true });
 
     console.log('restatedIntent:', restatedIntent);
-    if (restatedIntent?.needsClarification) {
+    if (restatedIntent && 'needsClarification' in restatedIntent && restatedIntent.needsClarification) {
       console.log('Model asked for clarification instead of guessing:', restatedIntent.question);
       return;
     }
 
-    const { componentFile, storiesFile } = await generateComponent({ restatedIntent, pattern: patterns[0] });
+    const { componentFile, storiesFile }: { componentFile: GeneratedFile; storiesFile: GeneratedFile | null } =
+      await generateComponent({ restatedIntent, pattern: patterns[0] });
 
     const outDir = path.join(__dirname, '..', 'generated', 'live');
     fs.mkdirSync(outDir, { recursive: true });
@@ -104,11 +113,11 @@ if (require.main === module) {
       console.log(`Wrote generated/live/${storiesFile.filename}`);
     }
 
-    const { critique } = require('./critic');
+    const { critique } = require('./critic.ts');
     const criticResult = critique(componentFile.content, { resolvedTokens });
     console.log('critic:', JSON.stringify(criticResult, null, 2));
 
-    const { runGate } = require('./gate');
+    const { runGate } = require('./gate.ts');
     const tokensJson = require('../tokens.json');
     const gateResult = runGate(componentFile.content, tokensJson, 'Button');
     console.log('gate:', JSON.stringify(gateResult, null, 2));

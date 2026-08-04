@@ -1,9 +1,11 @@
-const fs = require('fs');
-const path = require('path');
+import type { PatternFile } from './types.ts';
+
+const fs: typeof import('fs') = require('fs');
+const path: typeof import('path') = require('path');
 
 const PATTERNS_ROOT = path.join(__dirname, '..', 'patterns');
 
-function read_component_patterns(componentType, framework) {
+function read_component_patterns(componentType: string, framework: string): PatternFile[] {
   const dir = path.join(PATTERNS_ROOT, framework);
   if (!fs.existsSync(dir)) return [];
 

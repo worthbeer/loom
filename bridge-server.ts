@@ -2,7 +2,7 @@
 // Bridge server. Storybook addon panels run in the browser and can't
 // `require('fs')`/`require('child_process')` directly — this small local
 // server is the bridge between the panel (browser, EventSource) and
-// loom.js's real Node-side pipeline (the same generate() function the CLI
+// loom.ts's real Node-side pipeline (the same generate() function the CLI
 // uses, not a second implementation — see ADR 0002).
 //
 // Plain-language parsing here is a small, deterministic keyword matcher,
@@ -10,17 +10,25 @@
 // fixtures actually have; anything else falls through to a clear "don't
 // understand" error, never a guess.
 
-const http = require('http');
-const { URL } = require('url');
-const { generate } = require('./loom');
+import type { IncomingMessage, ServerResponse } from 'http';
 
-const PORT = process.env.LOOM_BRIDGE_PORT || 4178;
+const http: typeof import('http') = require('http');
+const { URL }: typeof import('url') = require('url');
+const { generate } = require('./loom.ts');
+
+const PORT = Number(process.env.LOOM_BRIDGE_PORT) || 4178;
 
 const KNOWN_COMPONENTS = ['button', 'alert', 'badge', 'chip'];
 const KNOWN_VARIANTS = ['danger', 'info', 'broken', 'alert'];
 const KNOWN_FRAMEWORKS = ['react', 'angular'];
 
-function parsePrompt(prompt) {
+interface ParsedPrompt {
+  component?: string;
+  variant?: string;
+  framework?: string;
+}
+
+function parsePrompt(prompt: string): ParsedPrompt {
   const lower = prompt.toLowerCase();
   const component = KNOWN_COMPONENTS.find((c) => new RegExp(`\\b${c}\\b`).test(lower));
   const variant = KNOWN_VARIANTS.find((v) => new RegExp(`\\b${v}\\b`).test(lower));
@@ -28,12 +36,12 @@ function parsePrompt(prompt) {
   return { component, variant, framework };
 }
 
-function sseWrite(res, data) {
+function sseWrite(res: ServerResponse, data: unknown): void {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://localhost:${PORT}`);
+const server = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  const url = new URL(req.url || '', `http://localhost:${PORT}`);
 
   // CORS: Storybook's manager/panel is served from a different port.
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -72,15 +80,15 @@ const server = http.createServer(async (req, res) => {
       variant,
       framework,
       // live defaults to false (not passed) — the panel always uses the
-      // free, pre-built fixture path; --live is CLI-only for now (loom.js),
+      // free, pre-built fixture path; --live is CLI-only for now (loom.ts),
       // a deliberate scope line so browsing the panel never has a cost.
-      onTrace: (line) => sseWrite(res, { type: 'trace', line }),
+      onTrace: (line: string) => sseWrite(res, { type: 'trace', line }),
       // No resolveAmbiguity passed — SSE is one-directional; ambiguity
       // ends the stream with a clarifying message instead of guessing.
     });
     sseWrite(res, { type: 'done', result });
   } catch (err) {
-    sseWrite(res, { type: 'error', message: err.message });
+    sseWrite(res, { type: 'error', message: (err as Error).message });
   }
   res.end();
 });

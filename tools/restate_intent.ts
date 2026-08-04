@@ -1,10 +1,12 @@
+import type { Intent, ResolvedTokens, PatternFile, RestatedIntent } from './types.ts';
+
 // restate_intent. Stubbed by default (returns null), and only makes a
 // real Anthropic call when explicitly asked via the `live` option. This is
-// deliberate: the free regression suite (tools/run_retrieval_loop.js's own
-// self-test, tools/critic.js's self-test, the fixture regression sweep in
+// deliberate: the free regression suite (tools/run_retrieval_loop.ts's own
+// self-test, tools/critic.ts's self-test, the fixture regression sweep in
 // generated/) must keep working with zero network calls and zero cost,
 // whether or not ANTHROPIC_API_KEY happens to be set in the shell. Live
-// mode is only reached by an explicit caller decision (loom.js's `--live`
+// mode is only reached by an explicit caller decision (loom.ts's `--live`
 // CLI flag), never by ambient environment state alone.
 //
 // When live, this is the prompt hand-traced in
@@ -23,7 +25,7 @@
 // question: string }` when live; `null` when stubbed.
 //
 // This function's output is a checkpoint for the generator's benefit, not a
-// new source of ground truth — critic.js intentionally does not accept a
+// new source of ground truth — critic.ts intentionally does not accept a
 // restatedIntent parameter at all, so there is no way for it to read this
 // output even by accident. That's ADR 0011, enforced structurally rather
 // than by convention.
@@ -38,26 +40,33 @@ If you cannot confidently attribute every token to its correct role (e.g. which 
 
 Respond with ONLY a JSON object, no other text, no markdown fences: either {"restatement": string} or {"needsClarification": true, "question": string}.`;
 
-async function restate_intent({ intent, resolvedTokens, patterns, live = false }) {
+interface RestateIntentArgs {
+  intent: Intent;
+  resolvedTokens: ResolvedTokens;
+  patterns: PatternFile[];
+  live?: boolean;
+}
+
+async function restate_intent({ intent, resolvedTokens, patterns, live = false }: RestateIntentArgs): Promise<RestatedIntent> {
   if (!live) {
     return null; // stubbed — see traces/restate-intent-trace.md for real behavior
   }
 
-  const { callAnthropic, stripCodeFences } = require('./anthropic_client');
+  const { callAnthropic, stripCodeFences } = require('./anthropic_client.ts');
   const userPayload = {
     intent,
     resolvedTokens,
     patterns: patterns.map((p) => ({ filename: p.filename, source: p.source })),
   };
 
-  const raw = await callAnthropic({
+  const raw: string = await callAnthropic({
     system: SYSTEM_PROMPT,
     user: JSON.stringify(userPayload, null, 2),
     model: 'claude-haiku-4-5-20251001', // small, cheap, non-creative — matches this stage's own description
     maxTokens: 512,
   });
 
-  let parsed;
+  let parsed: RestatedIntent;
   try {
     parsed = JSON.parse(stripCodeFences(raw));
   } catch {

@@ -5,18 +5,21 @@
   "private": true,
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=23.6.0"
   },
   "bin": {
-    "loom": "./loom.js"
+    "loom": "./loom.ts"
   },
   "scripts": {
     "test": "node --test",
-    "generate": "node loom.js generate",
-    "validate": "node validate.js",
-    "bridge": "node bridge-server.js",
-    "tokens:build": "node tools/generate_tokens_css.js && node tools/generate_token_resolver.js"
+    "typecheck": "tsc --noEmit",
+    "generate": "node loom.ts generate",
+    "validate": "node validate.ts",
+    "bridge": "node bridge-server.ts",
+    "tokens:build": "node tools/generate_tokens_css.ts && node tools/generate_token_resolver.ts"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "typescript": "^7.0.2"
+  }
 }

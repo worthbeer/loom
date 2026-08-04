@@ -1,7 +1,7 @@
 // Turns the fixture regression sweep — previously a manual bash loop run by
-// hand throughout this build ("node validate.js <file>" x25, eyeballed) —
+// hand throughout this build ("node validate.ts <file>" x25, eyeballed) —
 // into real assertions with a real exit code. Spawns the actual CLI
-// (validate.js) per fixture rather than importing runGate directly, so this
+// (validate.ts) per fixture rather than importing runGate directly, so this
 // tests the real interface (componentType inference, isStylesheet
 // detection, the GENERATED_GROUND_TRUTH exemption) and not a
 // reimplementation of it.
@@ -14,7 +14,7 @@ const ROOT = path.join(__dirname, '..');
 
 // expected: 0 = gate passes, 1 = gate fails (a real violation), 2 = exempt
 // generated-ground-truth file, not gated at all.
-const FIXTURES = [
+const FIXTURES: [string, number][] = [
   ['generated/Alert.clean.tsx', 0],
   ['generated/Alert.renamed-prop.tsx', 1],
   ['generated/Alert.renamed-variant.tsx', 1],
@@ -42,13 +42,13 @@ const FIXTURES = [
   ['generated/Button.hardcoded.css', 1],
 ];
 
-function runValidate(relativePath) {
+function runValidate(relativePath: string): number {
   try {
-    execFileSync('node', ['validate.js', relativePath], { cwd: ROOT, stdio: 'pipe' });
+    execFileSync('node', ['validate.ts', relativePath], { cwd: ROOT, stdio: 'pipe' });
     return 0;
   } catch (err) {
     // execFileSync throws on non-zero exit; the real code is on the error.
-    return err.status;
+    return (err as { status: number }).status;
   }
 }
 
