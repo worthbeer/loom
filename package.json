@@ -1,0 +1,22 @@
+{
+  "name": "loom",
+  "version": "1.0.0",
+  "description": "Agentic, Storybook-style component library: generates convention-compliant components from design intent, checked by an independent critic and a deterministic gate before anything lands as a PR.",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "loom": "./loom.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "generate": "node loom.js generate",
+    "validate": "node validate.js",
+    "bridge": "node bridge-server.js",
+    "tokens:build": "node tools/generate_tokens_css.js && node tools/generate_token_resolver.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

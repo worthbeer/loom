@@ -1,0 +1,25 @@
+name: CI
+
+# Runs this repo's own test suite (tests/) on every push/PR — the gate
+# regression sweep (all fixtures in generated/, via the real validate.js
+# CLI) plus unit coverage for the retrieval tools, critic, and framework
+# routing. Separate from the LOOM gate CI that runs in the two consumer
+# repos (ai-builder-styles, ai-builder-angular-styles) — this one verifies
+# the source of truth those repos vendor from.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm test

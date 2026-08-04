@@ -1,0 +1,22 @@
+{
+  "name": "@loom-scratch/react-components",
+  "version": "0.1.0",
+  "description": "LOOM-17 scratch publish target — not a real published package.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "files": [
+    "components",
+    "index.ts",
+    "tokens.css"
+  ],
+  "license": "UNLICENSED",
+  "private": false,
+  "peerDependencies": {
+    "react": "*"
+  },
+  "devDependencies": {
+    "react": "18.3.1",
+    "@types/react": "18.3.3",
+    "typescript": "5.5.4"
+  }
+}

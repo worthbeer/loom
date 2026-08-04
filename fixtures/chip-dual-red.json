@@ -1,0 +1,13 @@
+{
+  "component": "Chip",
+  "componentId": "40:1",
+  "componentProperties": {
+    "State#40:5": { "type": "VARIANT", "value": "Alert" },
+    "Size#40:6": { "type": "VARIANT", "value": "Sm" }
+  },
+  "fills": [{ "type": "SOLID", "color": { "r": 0.7529, "g": 0.2235, "b": 0.1686, "a": 1 } }],
+  "strokes": [{ "type": "SOLID", "color": { "r": 0.6627, "g": 0.1961, "b": 0.149, "a": 1 } }],
+  "styles": { "fill": "S:chip-red-600,0", "stroke": "S:chip-red-700,0" },
+  "cornerRadius": 4,
+  "children": [{ "type": "TEXT", "characters": "Alert" }]
+}

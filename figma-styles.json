@@ -1,0 +1,8 @@
+{
+  "S:button-red-600,0": { "name": "Red/600", "styleType": "FILL" },
+  "S:alert-blue-600,0": { "name": "Blue/600", "styleType": "FILL" },
+  "S:alert-gray-900,0": { "name": "Gray/900", "styleType": "FILL" },
+  "S:badge-red-999,0": { "name": "Red/999", "styleType": "FILL" },
+  "S:chip-red-600,0": { "name": "Red/600", "styleType": "FILL" },
+  "S:chip-red-700,0": { "name": "Red/700", "styleType": "FILL" }
+}

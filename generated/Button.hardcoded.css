@@ -1,0 +1,8 @@
+/* Deliberately violates the new CSS rule: hardcodes a literal instead of
+   referencing a token via var() — proves gate rule 1 actually enforces
+   this, not just that correctly-written CSS happens to pass. */
+
+.btn-default {
+  background: #DCEEFB;
+  color: var(--color-gray-900);
+}

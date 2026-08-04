@@ -1,0 +1,13 @@
+{
+  "component": "Button",
+  "componentId": "10:20",
+  "componentProperties": {
+    "State#10:5": { "type": "VARIANT", "value": "Danger" },
+    "Size#10:6": { "type": "VARIANT", "value": "Md" }
+  },
+  "fills": [{ "type": "SOLID", "color": { "r": 0.7529, "g": 0.2235, "b": 0.1686, "a": 1 } }],
+  "styles": { "fill": "S:button-red-600,0" },
+  "cornerRadius": 4,
+  "targetPlatform": "angular",
+  "children": [{ "type": "TEXT", "characters": "Delete" }]
+}
