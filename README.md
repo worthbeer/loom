@@ -1,10 +1,10 @@
 # Loom
 
-An agentic, Storybook-style component library. Instead of a passive
-package a developer has to already know how to use correctly, Loom
-generates components from design intent, checks the result two
-independent ways, and lands it as a draft pull request for a human to
-review.
+An agentic, Storybook-style component library. Loom turns a plain-language
+description of a component into working React or Angular code. It
+generates the component, checks the result two independent ways, then
+opens the change as a draft PR for a human to review before anything
+lands.
 
 Facts — design tokens, prop conventions — come from tools with
 deterministic, testable output, not from a model's memory. The pass/fail
