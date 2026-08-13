@@ -54,8 +54,10 @@ Generation
   produces a component + story file for the target framework
         ↓
 Critic
-  independent model call, re-derives ground truth fresh from the
-  generated output — see ADR 0006
+  mechanical checks (hardcoded/invented values) always run, regex/pattern
+  against re-derived ground truth; semantic match (matches_intent) is an
+  independent model call under --live, stubbed otherwise — see ADR 0006,
+  ADR 0014
         ↓
 Gate
   deterministic AST/regex/schema checks, the actual pass/fail

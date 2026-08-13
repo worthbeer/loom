@@ -26,7 +26,7 @@ const readline: typeof import('readline') = require('readline');
 const { routeFramework } = require('./tools/route_framework.ts');
 const { run_retrieval_loop } = require('./tools/run_retrieval_loop.ts');
 const { generateComponent } = require('./tools/generate_component.ts');
-const { critique } = require('./tools/critic.ts');
+const { critique, critiqueSemantic } = require('./tools/critic.ts');
 const { runGate } = require('./tools/gate.ts');
 const { open_pr, openPullRequest, postComment, buildCommentBody, getToken } = require('./tools/open_pr.ts');
 
@@ -202,8 +202,15 @@ async function generate({ component, variant, framework: explicitFramework, live
   }
 
   // Critic — real, independent re-derivation from resolvedTokens, never
-  // from restatedIntent (ADR 0011).
+  // from restatedIntent (ADR 0011). Mechanical checks always run; the
+  // semantic half (matches_intent) only makes a model call under --live,
+  // same cost discipline as restatement/generation (ADR 0014).
   const criticResult: CriticResult = critique(componentSource, { resolvedTokens });
+  if (live) {
+    const semantic = await critiqueSemantic({ source: componentSource, intent, resolvedTokens, patterns, live });
+    if (semantic) criticResult.matches_intent = semantic.matches_intent;
+    onTrace(`Running critic (semantic)... matches_intent: ${criticResult.matches_intent} — ${semantic?.explanation ?? ''}`);
+  }
   onTrace(`Running critic... ${criticResult.passed ? '✅ passed' : '❌ failed'}, ${criticResult.violations.length} violations`);
 
   // Gate — real, deterministic, the actual pass/fail authority.

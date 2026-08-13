@@ -102,16 +102,22 @@ node response — no live OAuth integration. Retrieval, the deterministic
 gate, framework routing, GitHub PR/CI landing, and the publish flow are
 real, verified against live CI runs across React and Angular targets.
 
-Two model-call stages — intent restatement and generation — are real
-Anthropic API calls, gated behind an explicit `--live` flag rather than
-the mere presence of `ANTHROPIC_API_KEY`, so the default path and the
-test suite run free and offline. A live run against a real fixture
-produced code that correctly referenced the tokens it was given, but also
-introduced spacing values that weren't in the resolved token set — both
-the critic and the gate independently caught it. That output is kept at
-`generated/live/` as a record of the checks working against unscripted
-model output, not just hand-built test cases.
+Three model-call stages — intent restatement, generation, and the
+critic's semantic judgment — are real Anthropic API calls, gated behind
+an explicit `--live` flag rather than the mere presence of
+`ANTHROPIC_API_KEY`, so the default path and the test suite run free and
+offline. A live run against a real fixture produced code that correctly
+referenced the tokens it was given, but also introduced spacing values
+that weren't in the resolved token set — both the critic and the gate
+independently caught it. That output is kept at `generated/live/` as a
+record of the checks working against unscripted model output, not just
+hand-built test cases.
 
 The critic's semantic judgment (`matches_intent` — does the output
-actually match what was asked for, not just the mechanical rules) is not
-yet wired to a model call.
+actually match what was asked for, not just the mechanical rules, via
+`critiqueSemantic()` in `tools/critic.ts`) only runs under `--live`;
+`matches_intent` stays `null` on the default path, same as restatement
+and generation.
+
+Landing a result as a real PR is a further, separate opt-in
+(`--open-pr`, see ADR 0013) — a passing gate alone never opens anything.
