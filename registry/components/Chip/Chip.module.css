@@ -1,0 +1,32 @@
+/* Values referenced via CSS custom properties generated from tokens.json
+   (registry/tokens.css, tools/generate_tokens_css.ts) — never hardcoded
+   here, same convention as ../Button/Button.module.css. */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  cursor: default;
+  font: inherit;
+  border-radius: var(--radius-lg);
+}
+
+.chip-default {
+  background: var(--color-gray-100);
+  color: var(--color-gray-900);
+}
+
+.chip-alert {
+  background: var(--color-red-600);
+  color: var(--color-gray-100);
+}
+
+.chip-sm {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.75rem;
+}
+
+.chip-md {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.875rem;
+}

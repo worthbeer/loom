@@ -1,6 +1,6 @@
 {
   "name": "@loom-scratch/react-components",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "LOOM-17 scratch publish target — not a real published package.",
   "main": "index.ts",
   "types": "index.ts",
