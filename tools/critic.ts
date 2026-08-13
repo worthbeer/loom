@@ -86,7 +86,7 @@ async function critiqueSemantic({ source, intent, resolvedTokens, patterns, live
     system: SEMANTIC_SYSTEM_PROMPT,
     user: JSON.stringify(userPayload, null, 2),
     model: 'claude-sonnet-5', // a judgment call, same tier as generation — not the cheap paraphrase-check tier restatement uses
-    maxTokens: 512,
+    maxTokens: 2048, // 512 truncated real responses before the closing brace twice in live testing — same budget as generation, not a guess
   });
 
   let parsed: SemanticCritique;
