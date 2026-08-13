@@ -80,7 +80,7 @@ async function generateComponent({ restatedIntent, pattern }: GenerateComponentA
   return result;
 }
 
-module.exports = { generateComponent };
+module.exports = { generateComponent, parseFileBlocks };
 
 if (require.main === module) {
   // Run for real: feed button-danger.json, get back Button.tsx +

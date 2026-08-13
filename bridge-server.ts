@@ -40,66 +40,74 @@ function sseWrite(res: ServerResponse, data: unknown): void {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-const server = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
-  const url = new URL(req.url || '', `http://localhost:${PORT}`);
+// Server creation/listen only happens when this file is run directly, not
+// when required as a library (e.g. tests requiring parsePrompt/sseWrite) —
+// same convention as tools/critic.ts, tools/generate_component.ts,
+// tools/open_pr.ts, tools/publish.ts all use for their "run for real"
+// blocks. Without this guard, requiring this file for its pure helpers
+// would silently bind a real port as a side effect.
+if (require.main === module) {
+  const server = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    const url = new URL(req.url || '', `http://localhost:${PORT}`);
 
-  // CORS: Storybook's manager/panel is served from a different port.
-  res.setHeader('Access-Control-Allow-Origin', '*');
+    // CORS: Storybook's manager/panel is served from a different port.
+    res.setHeader('Access-Control-Allow-Origin', '*');
 
-  if (url.pathname !== '/generate-stream') {
-    res.writeHead(404);
-    res.end();
-    return;
-  }
+    if (url.pathname !== '/generate-stream') {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
 
-  const prompt = url.searchParams.get('prompt') || '';
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-  });
+    const prompt = url.searchParams.get('prompt') || '';
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    });
 
-  const { component, variant, framework } = parsePrompt(prompt);
-  // openPr defaults to false — same opt-in discipline as loom.ts's
-  // --open-pr (ADR 0013): browsing the panel never touches a real repo
-  // unless the caller explicitly asks it to.
-  const openPr = url.searchParams.get('openPr') === 'true';
-  sseWrite(res, {
-    type: 'trace',
-    line: `Parsed request: component=${component || '?'}, variant=${variant || '?'}, framework=${framework || '(none given — will route)'}`,
-  });
-
-  if (!component || !variant) {
+    const { component, variant, framework } = parsePrompt(prompt);
+    // openPr defaults to false — same opt-in discipline as loom.ts's
+    // --open-pr (ADR 0013): browsing the panel never touches a real repo
+    // unless the caller explicitly asks it to.
+    const openPr = url.searchParams.get('openPr') === 'true';
     sseWrite(res, {
-      type: 'error',
-      message: `Could not recognize a component/variant in "${prompt}". Known components: ${KNOWN_COMPONENTS.join(', ')}. Known variants: ${KNOWN_VARIANTS.join(', ')}.`,
+      type: 'trace',
+      line: `Parsed request: component=${component || '?'}, variant=${variant || '?'}, framework=${framework || '(none given — will route)'}`,
     });
+
+    if (!component || !variant) {
+      sseWrite(res, {
+        type: 'error',
+        message: `Could not recognize a component/variant in "${prompt}". Known components: ${KNOWN_COMPONENTS.join(', ')}. Known variants: ${KNOWN_VARIANTS.join(', ')}.`,
+      });
+      res.end();
+      return;
+    }
+
+    try {
+      const result = await generate({
+        component,
+        variant,
+        framework,
+        // live defaults to false (not passed) — the panel always uses the
+        // free, pre-built fixture path; --live is CLI-only for now (loom.ts),
+        // a deliberate scope line so browsing the panel never has a cost.
+        openPr,
+        onTrace: (line: string) => sseWrite(res, { type: 'trace', line }),
+        // No resolveAmbiguity passed — SSE is one-directional; ambiguity
+        // ends the stream with a clarifying message instead of guessing.
+      });
+      sseWrite(res, { type: 'done', result });
+    } catch (err) {
+      sseWrite(res, { type: 'error', message: (err as Error).message });
+    }
     res.end();
-    return;
-  }
+  });
 
-  try {
-    const result = await generate({
-      component,
-      variant,
-      framework,
-      // live defaults to false (not passed) — the panel always uses the
-      // free, pre-built fixture path; --live is CLI-only for now (loom.ts),
-      // a deliberate scope line so browsing the panel never has a cost.
-      openPr,
-      onTrace: (line: string) => sseWrite(res, { type: 'trace', line }),
-      // No resolveAmbiguity passed — SSE is one-directional; ambiguity
-      // ends the stream with a clarifying message instead of guessing.
-    });
-    sseWrite(res, { type: 'done', result });
-  } catch (err) {
-    sseWrite(res, { type: 'error', message: (err as Error).message });
-  }
-  res.end();
-});
-
-server.listen(PORT, () => {
-  console.log(`LOOM bridge server listening on http://localhost:${PORT}`);
-});
+  server.listen(PORT, () => {
+    console.log(`LOOM bridge server listening on http://localhost:${PORT}`);
+  });
+}
 
 module.exports = { parsePrompt };
