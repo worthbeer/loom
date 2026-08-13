@@ -56,12 +56,17 @@ two entry points.
 node validate.ts path/to/Component.tsx
 node validate.ts --help                   # full rule reference
 
-# Generate a component and open a draft PR
+# Run the full pipeline as a dry run — retrieval, critic, gate, full trace,
+# but no GitHub call (see ADR 0013). Safe to run against this repo as-is.
 node loom.ts generate button --variant=danger --framework=react
+
+# Same, but actually land it as a draft PR against the real target repo —
+# --open-pr is a deliberate opt-in, not the default
+node loom.ts generate button --variant=danger --framework=react --open-pr
 
 # Same, but with real model calls for restatement + generation
 # (requires ANTHROPIC_API_KEY)
-node loom.ts generate button --variant=danger --framework=react --live
+node loom.ts generate button --variant=danger --framework=react --live --open-pr
 
 # Run the test suite / type-check
 npm test

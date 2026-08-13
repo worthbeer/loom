@@ -60,6 +60,10 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
   });
 
   const { component, variant, framework } = parsePrompt(prompt);
+  // openPr defaults to false — same opt-in discipline as loom.ts's
+  // --open-pr (ADR 0013): browsing the panel never touches a real repo
+  // unless the caller explicitly asks it to.
+  const openPr = url.searchParams.get('openPr') === 'true';
   sseWrite(res, {
     type: 'trace',
     line: `Parsed request: component=${component || '?'}, variant=${variant || '?'}, framework=${framework || '(none given — will route)'}`,
@@ -82,6 +86,7 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
       // live defaults to false (not passed) — the panel always uses the
       // free, pre-built fixture path; --live is CLI-only for now (loom.ts),
       // a deliberate scope line so browsing the panel never has a cost.
+      openPr,
       onTrace: (line: string) => sseWrite(res, { type: 'trace', line }),
       // No resolveAmbiguity passed — SSE is one-directional; ambiguity
       // ends the stream with a clarifying message instead of guessing.

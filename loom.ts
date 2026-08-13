@@ -4,16 +4,18 @@
 // to the terminal as each step completes — the trace is never hidden behind
 // "just show me the answer" (see ADR 0002).
 //
-// Two modes, both real code paths, chosen explicitly per run:
-//   - Default: restate_intent stays stubbed, generation reads a pre-built,
-//     already gate/critic-tested fixture from GENERATION_MAP. Zero network
-//     calls, zero cost — what the regression suite and demo chain have
-//     always run against, unchanged.
+// Two independent opt-ins, each chosen explicitly per run, neither keyed
+// off ambient environment state:
 //   - `--live` (requires ANTHROPIC_API_KEY): restate_intent and generation
 //     both make real Anthropic API calls (tools/restate_intent.ts,
-//     tools/generate_component.ts). Opt-in per invocation, not keyed off
-//     the env var's mere presence, so having a key exported in your shell
-//     doesn't silently make every routine run cost money.
+//     tools/generate_component.ts) instead of the zero-cost stub/fixture
+//     path the regression suite and demo chain always run against.
+//   - `--open-pr`: actually lands the result as a draft PR against the
+//     real target repo (tools/open_pr.ts). Without it, generate() stops
+//     after a passing gate — trace only, no GitHub call, no branch, no
+//     PR (see ADR 0013). This is the same discipline as `--live`, applied
+//     to the other side-effecting step: touching a real repo is never the
+//     default just because the gate happened to pass.
 
 import type { GateResult, CriticResult, ResolvedTokens } from './tools/types.ts';
 
@@ -109,6 +111,7 @@ interface GenerateArgs {
   variant: string;
   framework?: string;
   live?: boolean;
+  openPr?: boolean;
   onTrace?: (line: string) => void;
   resolveAmbiguity?: (() => Promise<string>) | null;
 }
@@ -127,7 +130,7 @@ interface GenerateResult {
 // Storybook panel) streams the same lines as SSE events and, since SSE is
 // one-directional, can't prompt mid-stream — it ends the stream on
 // ambiguity instead, surfacing the question rather than guessing.
-async function generate({ component, variant, framework: explicitFramework, live = false, onTrace = defaultLog, resolveAmbiguity = null }: GenerateArgs): Promise<GenerateResult> {
+async function generate({ component, variant, framework: explicitFramework, live = false, openPr = false, onTrace = defaultLog, resolveAmbiguity = null }: GenerateArgs): Promise<GenerateResult> {
   const fixtureKey = `${component}-${variant}`;
   const fixturePath = path.join(__dirname, 'fixtures', `${fixtureKey}.json`);
   if (!fs.existsSync(fixturePath)) {
@@ -214,7 +217,14 @@ async function generate({ component, variant, framework: explicitFramework, live
     return { gateResult, criticResult, prUrl: null, componentType, variant: intent.variant };
   }
 
-  // open_pr — for real, against the framework's real target repo.
+  // open_pr — for real, against the framework's real target repo. Gated on
+  // --open-pr (ADR 0013): a passing gate is a precondition for landing,
+  // never sufficient on its own to actually touch a real repo.
+  if (!openPr) {
+    onTrace('Gate passed. Not opening a PR — pass --open-pr to actually land this. (dry run)');
+    return { gateResult, criticResult, prUrl: null, componentType, variant: intent.variant };
+  }
+
   const target = FRAMEWORK_TARGETS[routing.framework];
   const branchName = `loom/${fixtureKey}-${routing.framework}-cli-${Date.now()}`;
   onTrace(`Opening PR... ${branchName} (draft)`);
@@ -253,21 +263,24 @@ async function generate({ component, variant, framework: explicitFramework, live
   return { gateResult, criticResult, prUrl: pr.html_url, componentType, variant: intent.variant };
 }
 
+const USAGE = 'Usage: node loom.ts generate <component> --variant=<x> [--framework=<react|angular>] [--live] [--open-pr]';
+
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (args[0] !== 'generate') {
-    console.error('Usage: node loom.ts generate <component> --variant=<x> [--framework=<react|angular>] [--live]');
+    console.error(USAGE);
     process.exit(2);
   }
   const component = args[1];
   const flags: Record<string, string> = {};
   const live = args.includes('--live');
+  const openPr = args.includes('--open-pr');
   for (const arg of args.slice(2)) {
     const match = arg.match(/^--([\w-]+)=(.*)$/);
     if (match) flags[match[1]] = match[2];
   }
   if (!component || !flags.variant) {
-    console.error('Usage: node loom.ts generate <component> --variant=<x> [--framework=<react|angular>] [--live]');
+    console.error(USAGE);
     process.exit(2);
   }
   if (live && !process.env.ANTHROPIC_API_KEY) {
@@ -275,7 +288,7 @@ if (require.main === module) {
     process.exit(2);
   }
 
-  generate({ component, variant: flags.variant, framework: flags.framework, live, resolveAmbiguity: promptFramework })
+  generate({ component, variant: flags.variant, framework: flags.framework, live, openPr, resolveAmbiguity: promptFramework })
     .then((result) => {
       console.log();
       console.log(`Summary: ${component} (${flags.variant}) — gate ${result.gateResult.passed ? 'passed' : 'FAILED'}`);

@@ -20,3 +20,4 @@ erases why the original choice was made.
 | [0010](0010-consumer-driven-registry.md) | Registry choice is driven by consumer, not tooling novelty |
 | [0011](0011-restatement-is-a-checkpoint.md) | Restatement is a comprehension checkpoint, not ground truth |
 | [0012](0012-figma-bridge-is-a-disclosed-seam.md) | figma-bridge is a disclosed seam, not a live integration |
+| [0013](0013-pr-landing-requires-explicit-opt-in.md) | PR landing requires explicit opt-in, mirroring --live's discipline |
