@@ -93,7 +93,7 @@ if (require.main === module) {
     const { run_retrieval_loop } = require('./run_retrieval_loop.ts');
 
     const buttonDanger = require('../fixtures/button-danger.json');
-    const { resolvedTokens, patterns, restatedIntent } = await run_retrieval_loop(buttonDanger, 'react', { live: true });
+    const { intent, resolvedTokens, patterns, restatedIntent } = await run_retrieval_loop(buttonDanger, 'react', { live: true });
 
     console.log('restatedIntent:', restatedIntent);
     if (restatedIntent && 'needsClarification' in restatedIntent && restatedIntent.needsClarification) {
@@ -113,8 +113,11 @@ if (require.main === module) {
       console.log(`Wrote generated/live/${storiesFile.filename}`);
     }
 
-    const { critique } = require('./critic.ts');
+    const { critique, critiqueSemantic } = require('./critic.ts');
     const criticResult = critique(componentFile.content, { resolvedTokens });
+    const semantic = await critiqueSemantic({ source: componentFile.content, intent, resolvedTokens, patterns, live: true });
+    if (semantic) criticResult.matches_intent = semantic.matches_intent;
+    console.log('critic (semantic):', JSON.stringify(semantic, null, 2));
     console.log('critic:', JSON.stringify(criticResult, null, 2));
 
     const { runGate } = require('./gate.ts');

@@ -4,60 +4,53 @@ import styled, { css } from 'styled-components';
 export type ButtonState = 'default' | 'danger';
 export type ButtonSize = 'sm' | 'md';
 
-export interface ButtonProps {
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   state?: ButtonState;
   size?: ButtonSize;
   children?: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
 }
 
-const sizeStyles = {
-  sm: css`
-    padding: 4px 8px;
-    font-size: 12px;
+const stateStyles = {
+  danger: css`
+    background-color: ${({ theme }) => theme.colors.red600};
+    color: #ffffff;
   `,
+  default: css`
+    background-color: transparent;
+  `,
+};
+
+const sizeStyles = {
   md: css`
     padding: 8px 16px;
     font-size: 14px;
   `,
-};
-
-const stateStyles = {
-  default: css`
-    background-color: var(--color-neutral-100);
-    color: var(--color-neutral-900);
-  `,
-  danger: css`
-    background-color: var(--color-red-600);
-    color: var(--color-neutral-white);
+  sm: css`
+    padding: 4px 8px;
+    font-size: 12px;
   `,
 };
 
 const StyledButton = styled.button<{ state: ButtonState; size: ButtonSize }>`
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: ${({ theme }) => theme.radii.sm};
   cursor: pointer;
-  font-weight: 600;
-  ${({ size }) => sizeStyles[size]}
   ${({ state }) => stateStyles[state]}
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  ${({ size }) => sizeStyles[size]}
 `;
 
 export const Button: React.FC<ButtonProps> = ({
   state = 'default',
   size = 'md',
   children,
-  onClick,
-  disabled,
+  ...rest
 }) => {
   return (
-    <StyledButton state={state} size={size} onClick={onClick} disabled={disabled}>
+    <StyledButton state={state} size={size} {...rest}>
       {children}
     </StyledButton>
   );
 };
+
+export default Button;
