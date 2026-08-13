@@ -136,6 +136,11 @@ shape matches Figma's real API rather than an invented convenience shape.
 - Every generated PR degrades gracefully to "just a draft" if the gate is
   unavailable — there is no code path that permits a merge when the gate
   can't run (see [ADR 0008](docs/adr/0008-never-auto-merge.md)).
+- Retrieval's mocked Figma input (ADR 0004) has a disclosed seam for
+  swapping to a live client. `figma-bridge/` defines that contract and a
+  matching mock adapter today; wiring a real implementation behind it is
+  future work, not yet built — see
+  [ADR 0012](docs/adr/0012-figma-bridge-is-a-disclosed-seam.md).
 
 ## Architecture decisions
 

@@ -6,6 +6,7 @@
     "moduleDetection": "force",
     "lib": ["ES2022"],
     "types": ["node"],
+    "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -16,7 +17,9 @@
   "include": [
     "*.ts",
     "tools/**/*.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "figma-bridge/**/*.ts",
+    "figma-bridge/**/*.tsx"
   ],
   "exclude": [
     "node_modules",

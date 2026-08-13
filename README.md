@@ -83,6 +83,10 @@ node bridge-server.ts
   combination; the regression suite.
 - `registry/` — a local scratch package `tools/publish.ts` publishes to.
 - `tests/` — the automated test suite (`node:test`).
+- `figma-bridge/` — a typed contract + mock adapter for the Figma remote
+  MCP server, structurally separate from the main pipeline; see
+  [`figma-bridge/README.md`](figma-bridge/README.md) and
+  [ADR 0012](docs/adr/0012-figma-bridge-is-a-disclosed-seam.md).
 - `ARCHITECTURE.md`, `docs/adr/` — system design and the reasoning behind
   each architectural decision.
 
